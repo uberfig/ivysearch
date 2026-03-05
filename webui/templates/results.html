@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+
+  <h1><a href="/">IvySearch</a></h1>
+
+  <form action="/search" method="POST">
+    <label for="query">query:</label>
+    <input type="text" id="query" name="query" required="required" spellcheck="true" value="{{query}}">
+    <button type="submit">search</button>
+  </form>
+
+  {% if site_mode %}
+  <p>searching site: {{ site_mode }}</p>
+
+  <ul>
+    {% for result in results %}
+    <li>
+      <p><a href="{{result.page}}">{{ result.page }}</a></p>
+      {% if result.missing_keywords | length > 0 %}
+      <p>missing keywords: {% for word in result.missing_keywords %}{{word}} {% endfor %}</p>
+      {% endif %}
+      <details>
+        <summary>result info</summary>
+        <p>individual hits: {{ result.individual_hits }}</p>
+        <p>total hits: {{ result.total_hits }}</p>
+        <p>page rank: {{ result.page_rank }}</p>
+      </details>
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% else %}
+
+  <ul>
+    {% for result in combined_results %}
+    <li>
+      <p><a href="{{result.parent.page}}">{{ result.parent.page }}</a></p>
+      {% if result.parent.missing_keywords | length > 0 %}
+      <p>missing keywords: {% for word in result.parent.missing_keywords %}{{word}} {% endfor %}</p>
+      {% endif %}
+      <details>
+        <summary>result info</summary>
+        <p>individual hits: {{ result.parent.individual_hits }}</p>
+        <p>total hits: {{ result.parent.total_hits }}</p>
+        <p>page rank: {{ result.parent.page_rank }}</p>
+      </details>
+
+
+      <ul>
+        {% for child in result.children %}
+        <li>
+          <p><a href="{{child.page}}">{{child.page }}</a></p>
+          {% if child.missing_keywords | length > 0 %}
+          <p>missing keywords: {% for word in child.missing_keywords %}{{word}} {% endfor %}</p>
+          {% endif %}
+          <details>
+            <summary>result info</summary>
+            <p>individual hits: {{ child.individual_hits }}</p>
+            <p>total hits: {{ child.total_hits }}</p>
+            <p>page rank: {{ child.page_rank }}</p>
+          </details>
+        </li>
+        {% endfor %}
+      </ul>
+
+
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% endif %}
+
+</body>
+
+</html>

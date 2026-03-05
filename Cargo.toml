@@ -1,0 +1,27 @@
+[package]
+name = "ivysearch"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+actix-files = "0.6.10"
+actix-web = "4.13.0"
+chrono = { version = "0.4.44", features = ["serde"] }
+# using old refinery version as the new one requires openssl and doesn't have an option for 
+# rustls as far as I can see
+reqwest = { version = "0.13.2", default-features = false, features = ["json", "rustls"] }
+
+sha2 = "0.10.9"
+
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+url = { version="2.5.8", features = ["serde"]}
+toml = "1.0.3"
+
+tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread", "fs"] }
+uuid = { version = "1.21.0", features = ["v7", "v4", "rng-getrandom", "serde"] }
+tera = "1.20.1"
+lazy_static = "1.5.0"
+percent-encoding = "2.3.2"
+scraper = "0.25.0"
+actix-rt = "2.11.0"
