@@ -99,7 +99,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(word_index.clone()))
             .service(get_api_routes())
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", index_info.port))?
     .run()
     .await
 }

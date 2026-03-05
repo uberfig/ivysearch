@@ -1,12 +1,79 @@
 <!DOCTYPE html>
 <html>
 
+<head>
+    <title>IvySearch</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        * {
+            font: 100%;
+            background-color: rgb(228, 192, 216);
+        }
+
+        p {
+            font-size: 1rem;
+        }
+
+        a {
+            color: rgb(25, 91, 60);
+        }
+
+        a:hover {
+            color: rgb(230, 10, 153);
+        }
+
+        a:visited {
+            color: rgb(19, 59, 41);
+        }
+
+        input {
+            padding: 6px;
+            background-color: #e6e6e6;
+            /* border: none; */
+            border-radius: 6px;
+            border-width: 2px;
+            border-style: solid;
+            border-color: rgb(25, 91, 60);
+            padding: 6px;
+        }
+
+        button {
+            text-decoration: none;
+            border: none;
+            border-radius: 6px;
+            border-width: 2px;
+            border-style: solid;
+            padding: 6px;
+
+            font: 100%;
+
+            color: rgb(25, 91, 60);
+            background-color: #e6e6e6;
+            opacity: 0.9;
+
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        button:hover {
+            color: rgb(230, 10, 153);
+            background-color: #fff
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin: auto;
+            padding-top: 1rem;
+        }
+    </style>
+</head>
+
 <body>
 
     <h1>IvySearch</h1>
 
     <form action="/search" method="POST">
-        <label for="query">query:</label>
+        <!-- <label for="query">query:</label> -->
         <input type="text" id="query" name="query" required="required" spellcheck="true" value="">
         <button type="submit">search</button>
     </form>

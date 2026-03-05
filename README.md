@@ -32,5 +32,6 @@ crawl_depth = 1
 site_depth = 4
 index_stale_days = 7
 num_of_runners = 4
+port = 8080
 
 ```

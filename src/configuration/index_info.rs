@@ -15,6 +15,7 @@ pub struct IndexInfo {
     /// after how many days should we treat the index as stale
     pub index_stale_days: Option<usize>,
     pub num_of_runners: usize,
+    pub port: u16,
 }
 
 impl IndexInfo {
@@ -39,6 +40,7 @@ impl IndexInfo {
             site_depth: 4,
             index_stale_days: Some(7),
             num_of_runners: 4,
+            port: 8080,
         }
     }
     pub async fn set_indexed(indexed: Option<DateTime<Local>>) {
