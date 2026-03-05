@@ -117,7 +117,7 @@ pub struct IndexStore {
     pub words: HashMap<String, Vec<IndexedPage>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SearchHit {
     pub page: Url,
     /// how many of the searched words does this hit
@@ -242,13 +242,13 @@ impl IndexStore {
         }
         let mut results: Vec<SearchHit> = results.into_values().collect();
         results.sort_unstable_by_key(|val| -1 * val.total_hits as isize);
-        results.sort_by(|a, b| {
-            if a.page.domain() == b.page.domain() {
-                (-1.0 * a.page_rank).total_cmp(&(-1.0 * b.page_rank))
-            } else {
-                (-1.0 * a.total_hits as f32).total_cmp(&(-1.0 * b.total_hits as f32))
-            }
-        });
+        // results.sort_by(|a, b| {
+        //     if a.page.domain() == b.page.domain() {
+        //         (-1.0 * a.page_rank).total_cmp(&(-1.0 * b.page_rank))
+        //     } else {
+        //         (-1.0 * a.total_hits as f32).total_cmp(&(-1.0 * b.total_hits as f32))
+        //     }
+        // });
         results.sort_by_key(|val| -1 * val.individual_hits as isize);
         results
     }

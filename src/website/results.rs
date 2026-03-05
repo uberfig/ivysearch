@@ -1,6 +1,9 @@
 use std::collections::VecDeque;
 
-use crate::{indexing::index_store::{IndexSharable, SearchHit}, parsing::keywords::split_string};
+use crate::{
+    indexing::index_store::{IndexSharable, SearchHit},
+    parsing::keywords::split_string,
+};
 use actix_web::{
     HttpResponse, Responder, get,
     http::{StatusCode, header::ContentType},
@@ -26,7 +29,7 @@ lazy_static! {
 
 const FRAGMENT: &AsciiSet = &CONTROLS.add(b' ').add(b'"').add(b'<').add(b'>').add(b'`');
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct Combined {
     parent: SearchHit,
     children: Vec<SearchHit>,
@@ -37,18 +40,40 @@ fn combine_results(meow: Vec<SearchHit>) -> Vec<Combined> {
     let mut new_list: Vec<Combined> = Vec::new();
     while let Some(hit) = meow.pop_front() {
         if new_list.is_empty() {
-            new_list.push(Combined { parent: hit, children: vec![] });
+            new_list.push(Combined {
+                parent: hit,
+                children: vec![],
+            });
             continue;
         }
-        let index = new_list.len() -1;
+        let index = new_list.len() - 1;
         if let Some(curr) = new_list.get_mut(index) {
             if curr.parent.page.domain() == hit.page.domain() {
                 curr.children.push(hit);
+            } else {
+                new_list.push(Combined {
+                    parent: hit,
+                    children: vec![],
+                });
             }
-            else {
-                new_list.push(Combined { parent: hit, children: vec![] });
+        }
+    }
+    for combined in &mut new_list {
+        combined
+            .children
+            .sort_by(|a, b| a.page_rank.total_cmp(&b.page_rank));
+        combined.children.reverse();
+        if let Some(child) = combined.children.get(0) {
+            if child.page_rank > combined.parent.page_rank {
+                let child = combined.children.remove(0);
+                let parent = combined.parent.clone();
+                combined.parent = child;
+                combined.children.insert(0, parent);
+                combined
+                    .children
+                    .sort_by(|a, b| a.page_rank.total_cmp(&b.page_rank));
+                combined.children.reverse();
             }
-            
         }
     }
 
@@ -72,10 +97,12 @@ async fn results(index: Data<IndexSharable>, path: web::Path<String>) -> impl Re
             } else {
                 None
             }
-        },
+        }
         None => None,
     };
-    let words: Vec<String> = split_string(&words.join(" ")).map(|x| x.to_string()).collect();
+    let words: Vec<String> = split_string(&words.join(" "))
+        .map(|x| x.to_string())
+        .collect();
     let results = match &site_search {
         Some(site) => index.search_site(words, site).await,
         None => index.search(words).await,
