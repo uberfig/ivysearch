@@ -24,6 +24,9 @@ async fn main() -> std::io::Result<()> {
     for site in &sites.sites {
         crawlstack.push(StackElem { depth: index_info.crawl_depth, site_depth: index_info.site_depth, page: site.clone() });
     }
+    for site in &sites.no_depth {
+        crawlstack.push(StackElem { depth: 1, site_depth: 1, page: site.clone() });
+    }
     let crawlstack = Arc::new(RwLock::new(crawlstack));
 
     if false {

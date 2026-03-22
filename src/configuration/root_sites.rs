@@ -9,6 +9,8 @@ const FILE_PATH: &str = "root_sites.toml";
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RootSites {
     pub sites: Vec<Url>,
+    /// list of sites to index but do not probe further
+    pub no_depth: Vec<Url>,
     pub blacklist: Vec<Url>,
 }
 
@@ -33,9 +35,12 @@ impl RootSites {
         Self {
             sites: vec![],
             blacklist: vec![],
+            no_depth: vec![],
         }
     }
-    pub fn get_random(&self) -> Url {
-        self.sites.choose(&mut rand::rng()).expect("no root sites").clone()
+    pub fn get_random(mut self) -> Url {
+        let mut combined = self.sites;
+        combined.append(&mut self.no_depth);
+        combined.choose(&mut rand::rng()).expect("no root sites").clone()
     }
 }

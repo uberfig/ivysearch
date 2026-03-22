@@ -104,7 +104,7 @@ pub async fn crawl_html_page(
         word_index.remove_page_content(&page).await;
     }
 
-    println!("parsing");
+    // println!("parsing");
 
     let parsed: scraper::Html = scraper::Html::parse_document(&body);
     // dbg!(&parsed.errors);
@@ -114,7 +114,7 @@ pub async fn crawl_html_page(
         return Err(());
     }
 
-    println!("parsing finished");
+    // println!("parsing finished");
 
     let mut keywords = get_keywords(parsed.root_element());
     keywords.add_link(&page);
@@ -237,7 +237,7 @@ pub async fn crawl(
         let Ok((resolved, pages)) =
             crawl_html_page(elem.page.clone(), word_index.clone(), &mut visited).await
         else {
-            println!("crawling error");
+            // println!("crawling error");
             continue;
         };
         visited.insert(elem.page.as_str().to_string());
