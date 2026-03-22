@@ -1,3 +1,4 @@
+use rand::seq::IndexedRandom;
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
@@ -8,6 +9,7 @@ const FILE_PATH: &str = "root_sites.toml";
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RootSites {
     pub sites: Vec<Url>,
+    pub blacklist: Vec<Url>,
 }
 
 impl RootSites {
@@ -28,6 +30,12 @@ impl RootSites {
         }
     }
     fn new() -> Self {
-        Self { sites: vec![] }
+        Self {
+            sites: vec![],
+            blacklist: vec![],
+        }
+    }
+    pub fn get_random(&self) -> Url {
+        self.sites.choose(&mut rand::rng()).expect("no root sites").clone()
     }
 }

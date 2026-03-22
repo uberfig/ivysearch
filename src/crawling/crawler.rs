@@ -1,17 +1,22 @@
-use std::{collections::HashSet, sync::Arc};
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
+use texting_robots::Robot;
 use tokio::sync::RwLock;
 use url::Url;
 
 use crate::{
+    configuration::root_sites::RootSites,
     indexing::index_store::IndexSharable,
     parsing::{keywords::get_keywords, links::get_links},
 };
 
 const KNOWN_WRONG_FORMAT: &'static [&str] = &[
-    ".pdf", ".jpg", ".png", ".gif", ".rss", ".xml", ".css", ".js", 
+    ".pdf", ".jpg", ".png", ".gif", ".rss", ".xml", ".css", ".js",
 ];
 
 fn is_wrong(input: &str) -> bool {
@@ -36,7 +41,7 @@ pub async fn crawl_html_page(
     visited: &mut HashSet<String>,
 ) -> Result<(Url, Vec<Url>), ()> {
     println!("crawling");
-    if is_wrong(page.as_str()){
+    if is_wrong(page.as_str()) {
         println!("not html");
         return Err(());
     }
@@ -44,7 +49,7 @@ pub async fn crawl_html_page(
     let client = reqwest::Client::new();
     let response = client
         .get(page.as_str())
-        // .header("User-Agent", "ivysearch")
+        .header("User-Agent", "ivysearch")
         .send()
         .await;
     let response = match response {
@@ -62,7 +67,11 @@ pub async fn crawl_html_page(
         println!("resolved url: {}", resolved_url.as_str());
     }
     if visited.contains(resolved_url.as_str()) && resolved_url != page {
-        println!("possible duplicate site resolved: {} from link: {}", resolved_url.as_str(), page.as_str());
+        println!(
+            "possible duplicate site resolved: {} from link: {}",
+            resolved_url.as_str(),
+            page.as_str()
+        );
         return Err(());
     }
     visited.insert(resolved_url.to_string());
@@ -145,6 +154,46 @@ struct StackElem {
     // parent: Option<Url>,
 }
 
+fn has_domain(domain: Option<&str>, list: &Vec<Url>) -> bool {
+    for element in list {
+        if let (Some(banned_domain), Some(check_domain)) = (element.domain(), domain) {
+            if check_domain.ends_with(banned_domain) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+async fn get_robots(domain: &str) -> Option<Robot> {
+    let robots_url = format!("https://{}/robots.txt", domain);
+    let client = reqwest::Client::new();
+    let response = client
+        .get(robots_url)
+        .header("User-Agent", "ivysearch")
+        .send()
+        .await;
+    let response = match response {
+        Ok(resp) => resp,
+        Err(_err) => {
+            println!("robot response err for {}", domain);
+            return None;
+        }
+    };
+    let body = match response.text().await {
+        Ok(bod) => bod,
+        Err(_err) => {
+            println!("robot body resp err for {}", domain);
+            return None;
+        }
+    };
+    let r = Robot::new("ivysearch", body.as_bytes());
+    if let Ok(res) = r {
+        return Some(res);
+    }
+    None
+}
+
 async fn crawl(
     start_page: Url,
     word_index: IndexSharable,
@@ -152,7 +201,13 @@ async fn crawl(
     start_site_depth: usize,
     visited: &mut HashSet<String>,
 ) {
-    let mut stack: Vec<StackElem> = vec![ StackElem{ depth: start_depth, site_depth: start_site_depth, page: start_page }];
+    let blacklist = RootSites::get().await.blacklist;
+    let mut domain_robots: HashMap<String, Option<Robot>> = HashMap::new();
+    let mut stack: Vec<StackElem> = vec![StackElem {
+        depth: start_depth,
+        site_depth: start_site_depth,
+        page: start_page,
+    }];
     while let Some(mut elem) = stack.pop() {
         // println!("preparing to crawl: {}", serde_json::to_string_pretty(&elem).unwrap());
         if elem.depth <= 0 || elem.site_depth <= 0 {
@@ -161,7 +216,7 @@ async fn crawl(
         elem.page.set_fragment(None);
         let _ = elem.page.set_scheme("https");
         println!("crawling: {}", elem.page.as_str());
-        
+
         let Ok((resolved, pages)) =
             crawl_html_page(elem.page.clone(), word_index.clone(), visited).await
         else {
@@ -171,14 +226,13 @@ async fn crawl(
         visited.insert(elem.page.as_str().to_string());
         // println!("crawled: {} and got links: {}", elem.page.as_str(), serde_json::to_string_pretty(&pages).unwrap());
 
-
-        for new_page in pages {
+        'new_page_loop: for new_page in pages {
+            
             // println!("child page: {}", new_page.as_str());
             if visited.contains(new_page.as_str()) {
                 // println!("already visited {}", new_page.as_str());
                 continue;
             }
-            
             let mut depth: Depth = elem.depth;
             let mut site_depth: SiteDepth = elem.site_depth;
             if new_page.domain() == elem.page.domain() || new_page.domain() == resolved.domain() {
@@ -187,9 +241,38 @@ async fn crawl(
             } else {
                 depth -= 1;
             }
-            // println!("pushing: {}", new_page.as_str());
-            stack.push(StackElem {depth, site_depth, page: new_page } );
-            // println!("stack after push: {}", serde_json::to_string_pretty(&stack).unwrap());
+            if depth <=0 || site_depth <= 0 {
+                continue;
+            }
+            if let Some(domain) = new_page.domain() {
+                match domain_robots.get(domain) {
+                    Some(Some(robot_rules)) => {
+                        if !robot_rules.allowed(new_page.as_str()) {
+                            println!("robots disallowed for {}", new_page);
+                            continue 'new_page_loop;
+                        }
+                    }
+                    Some(None) => {}
+                    None => {
+                        let robot = get_robots(domain).await;
+                        if let Some(robot) = &robot {
+                            if !robot.allowed(new_page.as_str()) {
+                                println!("robots disallowed for {}", new_page);
+                                continue 'new_page_loop;
+                            }
+                        }
+                        domain_robots.insert(domain.to_string(), robot);
+                    }
+                }
+            }
+            if has_domain(new_page.domain(), &blacklist) {
+                continue;
+            }
+            stack.push(StackElem {
+                depth,
+                site_depth,
+                page: new_page,
+            });
         }
     }
 }

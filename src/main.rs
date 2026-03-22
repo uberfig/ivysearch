@@ -24,7 +24,7 @@ async fn main() -> std::io::Result<()> {
 
     if false {
         word_index.init_pagerank().await;
-        for _ in 0..4 {
+        for _ in 0..20 {
             word_index.pagerank_iteration().await;
         }
         println!("finished pagerank, writing");
@@ -79,7 +79,7 @@ async fn main() -> std::io::Result<()> {
                         IndexInfo::set_indexed(Some(Local::now())).await;
                         println!("last runner finished");
                         word_index.init_pagerank().await;
-                        for _ in 0..4 {
+                        for _ in 0..20 {
                             word_index.pagerank_iteration().await;
                         }
                         println!("finished pagerank, writing");
