@@ -6,7 +6,7 @@ use crate::{
 };
 use actix_web::{
     HttpResponse, Responder, get,
-    http::{StatusCode, header::ContentType},
+    http::{StatusCode, header::{ContentLength, ContentType}},
     post,
     web::{self, Data},
 };
@@ -119,6 +119,7 @@ async fn results(index: Data<IndexSharable>, path: web::Path<String>) -> impl Re
 
     HttpResponse::build(StatusCode::OK)
         .content_type(ContentType::html())
+        .insert_header(ContentLength(body.len()))
         .body(body)
 }
 
