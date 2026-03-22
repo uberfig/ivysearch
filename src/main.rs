@@ -4,10 +4,11 @@ use actix_web::{App, HttpServer, web::Data};
 use chrono::Local;
 use ivysearch::{
     configuration::{index_info::IndexInfo, root_sites::RootSites},
-    crawling::crawler::crawl_recursive,
+    crawling::crawler::{StackElem, crawl},
     indexing::index_store::{IndexSharable, IndexStore},
     website::routes::get_api_routes,
 };
+use tokio::sync::RwLock;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -19,8 +20,11 @@ async fn main() -> std::io::Result<()> {
     let index_info = IndexInfo::get().await;
     let stale = index_info.is_stale();
 
-    let mut remain = sites.sites.clone();
-    let mut divvied = Vec::new();
+    let mut crawlstack: Vec<StackElem> = Vec::new();
+    for site in &sites.sites {
+        crawlstack.push(StackElem { depth: index_info.crawl_depth, site_depth: index_info.site_depth, page: site.clone() });
+    }
+    let crawlstack = Arc::new(RwLock::new(crawlstack));
 
     if false {
         word_index.init_pagerank().await;
@@ -39,35 +43,18 @@ async fn main() -> std::io::Result<()> {
         let active_threads = Arc::new(AtomicU32::new(0));
         println!("index stale, begin indexing");
         for _ in 0..index_info.num_of_runners {
-            if remain.len() > 2 {
-                let group_split = remain.len() / index_info.num_of_runners;
-                if group_split >= 1 {
-                    let val = remain.split_off(group_split);
-                    divvied.push(val);
-                } else {
-                    let val = remain.split_off(remain.len() / 2);
-                    divvied.push(val);
-                }
-            } else {
-                divvied.push(remain);
-                break;
-            }
-        }
-        for _ in 0..index_info.num_of_runners {
-            if let Some(sites) = divvied.pop() {
-                active_threads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            active_threads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 let active_threads = active_threads.clone();
                 let word_index = word_index.clone();
+                let crawlstack = crawlstack.clone();
                 actix_rt::spawn(async move {
                     println!(
                         "running with active threads of {}",
                         active_threads.load(std::sync::atomic::Ordering::SeqCst)
                     );
-                    crawl_recursive(
-                        sites,
+                    crawl(
                         word_index.clone(),
-                        index_info.crawl_depth,
-                        index_info.site_depth,
+                        crawlstack.clone(),
                     )
                     .await;
                     println!("finished crawling");
@@ -90,7 +77,6 @@ async fn main() -> std::io::Result<()> {
                         println!("finished writing");
                     }
                 });
-            }
         }
     }
 

@@ -17,6 +17,8 @@ use crate::{
 
 const KNOWN_WRONG_FORMAT: &'static [&str] = &[
     ".pdf", ".jpg", ".png", ".gif", ".rss", ".xml", ".css", ".js",
+    ".webp", ".svg", ".zip", ".7z", ".gz", ".tar", ".csv", ".txt",
+    ".mp3", ".mp4", ".wav", ".ogg", ".fcstd", ".3mf"
 ];
 
 fn is_wrong(input: &str) -> bool {
@@ -46,6 +48,14 @@ pub async fn crawl_html_page(
         return Err(());
     }
     let indexed_time = Local::now();
+
+    if let Some(last_indexed) = word_index.get_page_date(&page).await {
+        if last_indexed.signed_duration_since(indexed_time).as_seconds_f32() < 60.0 * 60.0 * 2.0 { // less than 2 hours old
+            println!("page indexed very recently");
+            return Ok((page.clone(), word_index.get_outgoing(&page).await));
+        }
+    }
+
     let client = reqwest::Client::new();
     let response = client
         .get(page.as_str())
@@ -104,6 +114,8 @@ pub async fn crawl_html_page(
         return Err(());
     }
 
+    println!("parsing finished");
+
     let mut keywords = get_keywords(parsed.root_element());
     keywords.add_link(&page);
     // println!("inserting keywords");
@@ -121,7 +133,9 @@ pub async fn crawl_html_page(
         let _ = link.set_scheme("https");
     }
     links.dedup();
-    word_index.set_page_links(page, links.clone()).await;
+    word_index.set_page_links(page.clone(), links.clone()).await;
+
+    println!("finished crawl of {}", page.as_str());
 
     Ok((resolved_url, links))
 }
@@ -130,27 +144,28 @@ pub struct VisitedSites {
     pub visited: Arc<RwLock<HashSet<String>>>,
 }
 
-pub async fn crawl_recursive(
-    pages: Vec<Url>,
-    word_index: IndexSharable,
-    depth: usize,
-    site_depth: usize,
-    // todo make this take in a visited sites shared with all threads
-    // todo add in sleeps
-) {
-    let mut visited = HashSet::new();
-    for page in pages {
-        crawl(page, word_index.clone(), depth, site_depth, &mut visited).await;
-    }
-}
+// pub async fn crawl_recursive(
+//     pages: Vec<Url>,
+//     word_index: IndexSharable,
+//     depth: usize,
+//     site_depth: usize,
+//     stack: Arc<RwLock<Vec<StackElem>>>,
+//     // todo make this take in a visited sites shared with all threads
+//     // todo add in sleeps
+// ) {
+//     let mut visited = HashSet::new();
+//     for page in pages {
+//         crawl(page, word_index.clone(), depth, site_depth, &mut visited, stack).await;
+//     }
+// }
 
 type Depth = usize;
 type SiteDepth = usize;
 #[derive(Debug, Serialize, Deserialize)]
-struct StackElem {
-    depth: usize,
-    site_depth: usize,
-    page: Url,
+pub struct StackElem {
+    pub depth: usize,
+    pub site_depth: usize,
+    pub page: Url,
     // parent: Option<Url>,
 }
 
@@ -194,21 +209,23 @@ async fn get_robots(domain: &str) -> Option<Robot> {
     None
 }
 
-async fn crawl(
-    start_page: Url,
+async fn pop_next(stack: &Arc<RwLock<Vec<StackElem>>>) -> Option<StackElem> {
+    stack.write().await.pop()
+}
+
+pub async fn crawl(
     word_index: IndexSharable,
-    start_depth: usize,
-    start_site_depth: usize,
-    visited: &mut HashSet<String>,
+    stack: Arc<RwLock<Vec<StackElem>>>,
 ) {
+    let mut visited = HashSet::new();
     let blacklist = RootSites::get().await.blacklist;
     let mut domain_robots: HashMap<String, Option<Robot>> = HashMap::new();
-    let mut stack: Vec<StackElem> = vec![StackElem {
-        depth: start_depth,
-        site_depth: start_site_depth,
-        page: start_page,
-    }];
-    while let Some(mut elem) = stack.pop() {
+    // let mut stack: Vec<StackElem> = vec![StackElem {
+    //     depth: start_depth,
+    //     site_depth: start_site_depth,
+    //     page: start_page,
+    // }];
+    while let Some(mut elem) = pop_next(&stack).await {
         // println!("preparing to crawl: {}", serde_json::to_string_pretty(&elem).unwrap());
         if elem.depth <= 0 || elem.site_depth <= 0 {
             continue;
@@ -218,7 +235,7 @@ async fn crawl(
         println!("crawling: {}", elem.page.as_str());
 
         let Ok((resolved, pages)) =
-            crawl_html_page(elem.page.clone(), word_index.clone(), visited).await
+            crawl_html_page(elem.page.clone(), word_index.clone(), &mut visited).await
         else {
             println!("crawling error");
             continue;
@@ -268,7 +285,7 @@ async fn crawl(
             if has_domain(new_page.domain(), &blacklist) {
                 continue;
             }
-            stack.push(StackElem {
+            stack.write().await.push(StackElem {
                 depth,
                 site_depth,
                 page: new_page,

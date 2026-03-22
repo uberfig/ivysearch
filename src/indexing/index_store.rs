@@ -100,6 +100,13 @@ impl IndexSharable {
         let mut lock = self.store.write().await;
         lock.graph.pagerank_iteration();
     }
+    pub async fn get_page_date(&self, url: &Url) -> Option<DateTime<Local>> {
+        let lock = self.store.read().await;
+        if let Some(id) = lock.page_ids.get(url) {
+            return Some(lock.pages[*id].last_indexed);
+        }
+        None
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
