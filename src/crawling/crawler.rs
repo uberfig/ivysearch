@@ -50,7 +50,7 @@ pub async fn crawl_html_page(
     let indexed_time = Local::now();
 
     if let Some(last_indexed) = word_index.get_page_date(&page).await {
-        if indexed_time.signed_duration_since(last_indexed).as_seconds_f32() < (60.0 * 60.0 * -1.0) { // less than 2 hours old
+        if indexed_time.signed_duration_since(last_indexed).as_seconds_f32() < (60.0 * 60.0 * 2.0) { // less than 2 hours old
             println!("page indexed very recently");
             return Ok((page.clone(), word_index.get_outgoing(&page).await));
         }
