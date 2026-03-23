@@ -18,7 +18,7 @@ use crate::{
 const KNOWN_WRONG_FORMAT: &'static [&str] = &[
     ".pdf", ".jpg", ".png", ".gif", ".rss", ".xml", ".css", ".js",
     ".webp", ".svg", ".zip", ".7z", ".gz", ".tar", ".csv", ".txt",
-    ".mp3", ".mp4", ".wav", ".ogg", ".fcstd", ".3mf"
+    ".mp3", ".mp4", ".wav", ".ogg", ".fcstd", ".3mf", ".jpeg", ".gif"
 ];
 
 fn is_wrong(input: &str) -> bool {
@@ -50,7 +50,7 @@ pub async fn crawl_html_page(
     let indexed_time = Local::now();
 
     if let Some(last_indexed) = word_index.get_page_date(&page).await {
-        if last_indexed.signed_duration_since(indexed_time).as_seconds_f32() < 60.0 * 60.0 * 2.0 { // less than 2 hours old
+        if indexed_time.signed_duration_since(last_indexed).as_seconds_f32() < (60.0 * 60.0 * -1.0) { // less than 2 hours old
             println!("page indexed very recently");
             return Ok((page.clone(), word_index.get_outgoing(&page).await));
         }
@@ -98,6 +98,7 @@ pub async fn crawl_html_page(
     if let Some(id) = word_index.get_page_id(&page).await {
         if word_index.get_page_hash(id).await == hash {
             println!("page unchanged");
+            println!("links {}", serde_json::to_string(&word_index.get_outgoing(&page).await).unwrap());
             return Ok((resolved_url, word_index.get_outgoing(&page).await));
         }
         //remove content and begin reindexing
@@ -213,6 +214,12 @@ async fn pop_next(stack: &Arc<RwLock<Vec<StackElem>>>) -> Option<StackElem> {
     stack.write().await.pop()
 }
 
+async fn insert_new(stack: &Arc<RwLock<Vec<StackElem>>>, element: StackElem) {
+    let mut stack = stack.write().await;
+    stack.push(element);
+    // println!("stack {}", serde_json::to_string(&*stack).unwrap());
+}
+
 pub async fn crawl(
     word_index: IndexSharable,
     stack: Arc<RwLock<Vec<StackElem>>>,
@@ -259,6 +266,7 @@ pub async fn crawl(
                 depth -= 1;
             }
             if depth <=0 || site_depth <= 0 {
+                // println!("meow");
                 continue;
             }
             if let Some(domain) = new_page.domain() {
@@ -283,13 +291,14 @@ pub async fn crawl(
                 }
             }
             if has_domain(new_page.domain(), &blacklist) {
+                println!("skipping banned domain");
                 continue;
             }
-            stack.write().await.push(StackElem {
+            insert_new(&stack, StackElem {
                 depth,
                 site_depth,
                 page: new_page,
-            });
+            }).await;
         }
     }
 }

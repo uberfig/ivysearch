@@ -4,10 +4,10 @@ pub fn get_links(parent: scraper::ElementRef<'_>, domain: &str) -> Vec<Url> {
     let mut links = Vec::new();
     if parent.value().name() == "a" {
         if let Some(link) = parent.value().attr("href") {
-            let link = link.trim().to_lowercase();
+            let link = link.trim().trim_start_matches(".").to_lowercase();
             if let Ok(link) = Url::parse(&link) {
                 links.push(link);
-            } else if let Ok(link) = Url::parse(&format!("http://{}{}", domain, link)) {
+            } else if let Ok(link) = Url::parse(&format!("https://{}{}", domain, link)) {
                 links.push(link);
             } else {
                 println!("invalid link: {}", link);
