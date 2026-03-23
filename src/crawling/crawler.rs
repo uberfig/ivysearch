@@ -98,7 +98,7 @@ pub async fn crawl_html_page(
     if let Some(id) = word_index.get_page_id(&page).await {
         if word_index.get_page_hash(id).await == hash {
             println!("page unchanged");
-            println!("links {}", serde_json::to_string(&word_index.get_outgoing(&page).await).unwrap());
+            // println!("links {}", serde_json::to_string(&word_index.get_outgoing(&page).await).unwrap());
             return Ok((resolved_url, word_index.get_outgoing(&page).await));
         }
         //remove content and begin reindexing
