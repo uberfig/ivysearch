@@ -18,7 +18,7 @@ use crate::{
 const KNOWN_WRONG_FORMAT: &'static [&str] = &[
     ".pdf", ".jpg", ".png", ".gif", ".rss", ".xml", ".css", ".js", ".webp", ".svg", ".zip", ".7z",
     ".gz", ".tar", ".csv", ".txt", ".mp3", ".mp4", ".wav", ".ogg", ".fcstd", ".3mf", ".jpeg",
-    ".gif", ".asc", ".torrent"
+    ".gif", ".asc", ".torrent", ".json"
 ];
 
 fn is_wrong(input: &str) -> bool {
