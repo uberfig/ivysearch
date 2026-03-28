@@ -60,16 +60,18 @@ impl GraphStore {
         }
     }
     pub fn pagerank_iteration(&mut self) {
-        let pages = self.page_rank.clone();
-        for page in pages.keys() {
-            let mut rank: f32 = 0.0; 
-            for incoming_link in self.incoming.get(page).expect(&format!("{} incoming links missing, graph incorrect", page.as_str())) {
-                let divider = self.outgoing.get(incoming_link).expect("outgoing links missing").len();
-                if divider != 0 {
-                    rank += pages.get(incoming_link).expect("page rank missing graph incorrect") / divider as f32;
-                }                
+        let mut new_ranks = HashMap::with_capacity(self.page_rank.len());
+        const DAMPENING: f32 = 0.85;
+        let n = self.page_rank.len() as f32;
+
+        for page in self.page_rank.keys() {
+            let mut rank = 0.0;
+            for incoming in self.incoming.get(page).expect(&format!("{} incoming links missing, graph incorrect", page.as_str())) {
+                rank += self.page_rank.get(incoming).unwrap() / self.outgoing.get(incoming).expect("outgoing links missing").len() as f32;
             }
-            *self.page_rank.get_mut(page).expect("page missing") = rank;
+            rank = (1.0 - DAMPENING) / n + DAMPENING * rank;
+            new_ranks.insert(page.clone(), rank);
         }
+        self.page_rank = new_ranks;
     }
 }

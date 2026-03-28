@@ -16,9 +16,9 @@ use crate::{
 };
 
 const KNOWN_WRONG_FORMAT: &'static [&str] = &[
-    ".pdf", ".jpg", ".png", ".gif", ".rss", ".xml", ".css", ".js",
-    ".webp", ".svg", ".zip", ".7z", ".gz", ".tar", ".csv", ".txt",
-    ".mp3", ".mp4", ".wav", ".ogg", ".fcstd", ".3mf", ".jpeg", ".gif"
+    ".pdf", ".jpg", ".png", ".gif", ".rss", ".xml", ".css", ".js", ".webp", ".svg", ".zip", ".7z",
+    ".gz", ".tar", ".csv", ".txt", ".mp3", ".mp4", ".wav", ".ogg", ".fcstd", ".3mf", ".jpeg",
+    ".gif",
 ];
 
 fn is_wrong(input: &str) -> bool {
@@ -50,7 +50,12 @@ pub async fn crawl_html_page(
     let indexed_time = Local::now();
 
     if let Some(last_indexed) = word_index.get_page_date(&page).await {
-        if indexed_time.signed_duration_since(last_indexed).as_seconds_f32() < (60.0 * 60.0 * 2.0) { // less than 2 hours old
+        if indexed_time
+            .signed_duration_since(last_indexed)
+            .as_seconds_f32()
+            < (60.0 * 60.0 * 2.0)
+        {
+            // less than 2 hours old
             println!("page indexed very recently");
             return Ok((page.clone(), word_index.get_outgoing(&page).await));
         }
@@ -181,6 +186,15 @@ fn has_domain(domain: Option<&str>, list: &Vec<Url>) -> bool {
     false
 }
 
+fn has_prefix(link: &str, list: &Vec<Url>) -> bool {
+    for element in list {
+        if link.starts_with(element.as_str()) {
+            return true;
+        }
+    }
+    false
+}
+
 async fn get_robots(domain: &str) -> Option<Robot> {
     let robots_url = format!("https://{}/robots.txt", domain);
     let client = reqwest::Client::new();
@@ -220,12 +234,12 @@ async fn insert_new(stack: &Arc<RwLock<Vec<StackElem>>>, element: StackElem) {
     // println!("stack {}", serde_json::to_string(&*stack).unwrap());
 }
 
-pub async fn crawl(
-    word_index: IndexSharable,
-    stack: Arc<RwLock<Vec<StackElem>>>,
-) {
+pub async fn crawl(word_index: IndexSharable, stack: Arc<RwLock<Vec<StackElem>>>) {
     let mut visited = HashSet::new();
-    let blacklist = RootSites::get().await.blacklist;
+    let (blacklist, exclude_prefix) = {
+        let rootsites = RootSites::get().await;
+        (rootsites.blacklist, rootsites.exclude_prefix)
+    };
     let mut domain_robots: HashMap<String, Option<Robot>> = HashMap::new();
     // let mut stack: Vec<StackElem> = vec![StackElem {
     //     depth: start_depth,
@@ -251,7 +265,6 @@ pub async fn crawl(
         // println!("crawled: {} and got links: {}", elem.page.as_str(), serde_json::to_string_pretty(&pages).unwrap());
 
         'new_page_loop: for new_page in pages {
-            
             // println!("child page: {}", new_page.as_str());
             if visited.contains(new_page.as_str()) {
                 // println!("already visited {}", new_page.as_str());
@@ -265,7 +278,7 @@ pub async fn crawl(
             } else {
                 depth -= 1;
             }
-            if depth <=0 || site_depth <= 0 {
+            if depth <= 0 || site_depth <= 0 {
                 // println!("meow");
                 continue;
             }
@@ -294,11 +307,20 @@ pub async fn crawl(
                 println!("skipping banned domain");
                 continue;
             }
-            insert_new(&stack, StackElem {
-                depth,
-                site_depth,
-                page: new_page,
-            }).await;
+            if has_prefix(new_page.as_str(), &exclude_prefix) {
+                println!("skipping banned prefix on page {}", new_page.as_str());
+                continue;
+            }
+
+            insert_new(
+                &stack,
+                StackElem {
+                    depth,
+                    site_depth,
+                    page: new_page,
+                },
+            )
+            .await;
         }
     }
 }

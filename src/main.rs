@@ -29,7 +29,7 @@ async fn main() -> std::io::Result<()> {
     }
     let crawlstack = Arc::new(RwLock::new(crawlstack));
 
-    if false {
+    if true {
         word_index.init_pagerank().await;
         for _ in 0..20 {
             word_index.pagerank_iteration().await;

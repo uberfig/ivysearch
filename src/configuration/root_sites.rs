@@ -12,6 +12,7 @@ pub struct RootSites {
     /// list of sites to index but do not probe further
     pub no_depth: Vec<Url>,
     pub blacklist: Vec<Url>,
+    pub exclude_prefix: Vec<Url>,
 }
 
 impl RootSites {
@@ -36,6 +37,7 @@ impl RootSites {
             sites: vec![],
             blacklist: vec![],
             no_depth: vec![],
+            exclude_prefix: vec![],
         }
     }
     pub fn get_random(mut self) -> Url {
