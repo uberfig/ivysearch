@@ -1,6 +1,6 @@
 use actix_web::{
     HttpResponse, Responder, get,
-    http::{StatusCode, header::ContentType, header::ContentLength},
+    http::{StatusCode, header::ContentLength, header::ContentType},
 };
 
 #[get("/")]

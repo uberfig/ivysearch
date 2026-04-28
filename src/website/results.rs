@@ -1,12 +1,18 @@
 use std::collections::VecDeque;
 
 use crate::{
-    indexing::index_store::{IndexSharable, SearchHit},
+    indexing::{
+        index_store::{IndexSharable, SearchHit},
+        wikipedia_index::WikiSharable,
+    },
     parsing::keywords::split_string,
 };
 use actix_web::{
     HttpResponse, Responder, get,
-    http::{StatusCode, header::{ContentLength, ContentType}},
+    http::{
+        StatusCode,
+        header::{ContentLength, ContentType},
+    },
     post,
     web::{self, Data},
 };
@@ -81,7 +87,11 @@ fn combine_results(meow: Vec<SearchHit>) -> Vec<Combined> {
 }
 
 #[get("/search/{query}")]
-async fn results(index: Data<IndexSharable>, path: web::Path<String>) -> impl Responder {
+async fn results(
+    index: Data<IndexSharable>,
+    wiki_index: Data<WikiSharable>,
+    path: web::Path<String>,
+) -> impl Responder {
     let path: Vec<u8> = percent_encoding::percent_decode_str(&path).collect();
     let path: String = String::from_utf8_lossy(&path).to_lowercase();
     let mut words: Vec<String> = path
@@ -104,13 +114,18 @@ async fn results(index: Data<IndexSharable>, path: web::Path<String>) -> impl Re
         .map(|x| x.to_string())
         .collect();
     let results = match &site_search {
-        Some(site) => index.search_site(words, site).await,
-        None => index.search(words).await,
+        Some(site) => index.search_site(words.clone(), site).await,
+        None => index.search(words.clone()).await,
+    };
+    let wiki_results = match site_search.is_none() {
+        true => wiki_index.store.search(words).await,
+        false => vec![],
     };
 
     let mut context = Context::new();
     context.insert("query", path.as_str());
     context.insert("results", &results);
+    context.insert("wiki_results", &wiki_results);
     context.insert("site_mode", &site_search);
     context.insert("combined_results", &combine_results(results));
     let body = TEMPLATES

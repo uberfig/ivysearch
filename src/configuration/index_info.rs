@@ -16,6 +16,8 @@ pub struct IndexInfo {
     pub index_stale_days: Option<usize>,
     pub num_of_runners: usize,
     pub port: u16,
+    /// enable/disable crawling if out of date on run
+    pub run_crawler: bool,
 }
 
 impl IndexInfo {
@@ -41,6 +43,7 @@ impl IndexInfo {
             index_stale_days: Some(7),
             num_of_runners: 4,
             port: 8080,
+            run_crawler: true,
         }
     }
     pub async fn set_indexed(indexed: Option<DateTime<Local>>) {

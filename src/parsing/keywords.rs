@@ -8,8 +8,7 @@ const STOP_WORDS: &'static [&str] = &[
 ];
 
 const PUNCTUATION: &'static [char] = &[
-    '\\', '\"', '/', ',', '!', '.', '*', ':', '(', ')', '-', '#', '•', '|', '<', '>', '?', '!',
-    '#'
+    '\\', '\"', '/', ',', '!', '.', '*', ':', '(', ')', '-', '#', '•', '|', '<', '>', '?', '!', '#',
 ];
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -39,6 +38,13 @@ impl KeywordSet {
         for word in split_string(&link) {
             self.add_occurance(word.to_string());
         }
+    }
+    pub fn from_line(line: &str) -> Self {
+        let mut keywords = KeywordSet {
+            keywords: HashMap::new(),
+        };
+        insert_keywords(line, &mut keywords);
+        keywords
     }
 }
 
@@ -120,7 +126,7 @@ fn keyword_recursive(parent: scraper::ElementRef<'_>, keywords: &mut KeywordSet)
             if let Some(alt) = element.value().attr("alt") {
                 insert_keywords(alt, keywords);
             }
-           continue 'outer;
+            continue 'outer;
         }
         let text = element.text().collect::<Vec<_>>().join("");
         // let cleaned = split_string(&text).collect::<Vec<_>>().join(" ");

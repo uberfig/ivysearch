@@ -90,7 +90,11 @@ impl IndexSharable {
         lock.graph.set_page_links(page, outgoing);
     }
     pub async fn search_site(&self, words: Vec<String>, domain: &str) -> Vec<SearchHit> {
-        self.search(words).await.into_iter().filter(|x| x.page.domain() == Some(domain)).collect()
+        self.search(words)
+            .await
+            .into_iter()
+            .filter(|x| x.page.domain() == Some(domain))
+            .collect()
     }
     pub async fn init_pagerank(&self) {
         let mut lock = self.store.write().await;
@@ -131,7 +135,7 @@ pub struct SearchHit {
     pub individual_hits: usize,
     /// how many times in total does it hit the searched words
     pub total_hits: usize,
-    pub page_rank: f32,
+    pub page_rank: f64,
     pub missing_keywords: Vec<String>,
 }
 
@@ -229,7 +233,12 @@ impl IndexStore {
                         Some(result) => {
                             result.individual_hits += 1;
                             result.total_hits += page.frequency;
-                            result.missing_keywords = result.missing_keywords.clone().into_iter().filter(|x| x != &word).collect();
+                            result.missing_keywords = result
+                                .missing_keywords
+                                .clone()
+                                .into_iter()
+                                .filter(|x| x != &word)
+                                .collect();
                         }
                         None => {
                             results.insert(
@@ -238,8 +247,17 @@ impl IndexStore {
                                     page: self.pages[page.page].url.clone(),
                                     individual_hits: 1,
                                     total_hits: page.frequency,
-                                    page_rank: *self.graph.page_rank.get(&self.pages[page.page].url).expect("pagerank missing"),
-                                    missing_keywords: words_clone.clone().into_iter().filter(|x| x != &word).collect(),
+                                    page_rank: self
+                                        .graph
+                                        .page_rank
+                                        .get(&self.pages[page.page].url)
+                                        .unwrap_or(&Some(0.1))
+                                        .unwrap_or(0.1),
+                                    missing_keywords: words_clone
+                                        .clone()
+                                        .into_iter()
+                                        .filter(|x| x != &word)
+                                        .collect(),
                                 },
                             );
                         }

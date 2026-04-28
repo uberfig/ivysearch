@@ -137,6 +137,26 @@
     {% endfor %}
   </ul>
 
+  {# wikipedia results #}
+  <h2>wikipedia results:</h2>
+
+  <ul>
+    {% for result in wiki_results %}
+    <li>
+      <p><a href="{{result.page}}">{{ result.page }}</a></p>
+      {% if result.missing_keywords | length > 0 %}
+      <p>missing keywords: {% for word in result.missing_keywords %}{{word}} {% endfor %}</p>
+      {% endif %}
+      <details>
+        <summary>result info</summary>
+        <p>individual hits: {{ result.individual_hits }}</p>
+        <p>total hits: {{ result.total_hits }}</p>
+        <p>page rank: {{ result.page_rank }}</p>
+      </details>
+    </li>
+    {% endfor %}
+  </ul>
+
   {% endif %}
 
 </body>

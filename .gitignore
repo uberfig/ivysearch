@@ -1,5 +1,8 @@
 /target
 index_info.toml
 root_sites.toml
+root_sites copy.toml
 word_frequency_index.json
-/wikipedia/*
+wiki_titles_frequency_index.json
+/wikipedia/titles
+!/wikipedia/titles/.gitkeep

@@ -3,14 +3,13 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GraphStore {
     /// the links pointing to this page
     pub incoming: HashMap<Url, Vec<Url>>,
     /// the links that this page points to
     pub outgoing: HashMap<Url, Vec<Url>>,
-    pub page_rank: HashMap<Url, f32>,
+    pub page_rank: HashMap<Url, Option<f64>>,
 }
 
 impl GraphStore {
@@ -32,8 +31,7 @@ impl GraphStore {
                     }
                 }
             }
-        }
-        else {
+        } else {
             // not in yet, make sure we init
             self.incoming.insert(page.clone(), vec![]);
         }
@@ -46,31 +44,39 @@ impl GraphStore {
                 Some(incoming) => incoming.push(page.clone()),
                 None => {
                     self.incoming.insert(out.clone(), vec![page.clone()]);
-                },
+                }
             }
         }
-        self.page_rank.insert(page.clone(), 0.1);
+        self.page_rank.insert(page.clone(), Some(0.1));
         self.outgoing.insert(page, outgoing);
     }
     pub fn init_pagerank(&mut self) {
-        let start_val: f32 = 1.0 / self.page_rank.len() as f32;
+        let start_val: f64 = 1.0 / self.page_rank.len() as f64;
         println!("initing pagerank with start val {}", start_val);
         for (_, rank) in &mut self.page_rank {
-            *rank = start_val;
+            *rank = Some(start_val);
         }
     }
     pub fn pagerank_iteration(&mut self) {
         let mut new_ranks = HashMap::with_capacity(self.page_rank.len());
-        const DAMPENING: f32 = 0.85;
-        let n = self.page_rank.len() as f32;
+        const DAMPENING: f64 = 0.85;
+        let n = self.page_rank.len() as f64;
 
         for page in self.page_rank.keys() {
             let mut rank = 0.0;
-            for incoming in self.incoming.get(page).expect(&format!("{} incoming links missing, graph incorrect", page.as_str())) {
-                rank += self.page_rank.get(incoming).unwrap() / self.outgoing.get(incoming).expect("outgoing links missing").len() as f32;
+            for incoming in self.incoming.get(page).expect(&format!(
+                "{} incoming links missing, graph incorrect",
+                page.as_str()
+            )) {
+                rank += self.page_rank.get(incoming).unwrap().unwrap_or(0.0)
+                    / self
+                        .outgoing
+                        .get(incoming)
+                        .expect("outgoing links missing")
+                        .len() as f64;
             }
             rank = (1.0 - DAMPENING) / n + DAMPENING * rank;
-            new_ranks.insert(page.clone(), rank);
+            new_ranks.insert(page.clone(), Some(rank));
         }
         self.page_rank = new_ranks;
     }

@@ -43,6 +43,9 @@ impl RootSites {
     pub fn get_random(mut self) -> Url {
         let mut combined = self.sites;
         combined.append(&mut self.no_depth);
-        combined.choose(&mut rand::rng()).expect("no root sites").clone()
+        combined
+            .choose(&mut rand::rng())
+            .expect("no root sites")
+            .clone()
     }
 }
